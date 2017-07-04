@@ -48,6 +48,9 @@ def store_submission(y_submission, submission_filename):
         for idata, y in enumerate(y_submission):
             wrt.write('{},{}\n'.format(idata, y))
 
+        SINGLE_ATTENTION_VECTOR = False
+        APPLY_ATTENTION_BEFORE_LSTM = False
+
 
 # -------------------------------------------------------------------------
 

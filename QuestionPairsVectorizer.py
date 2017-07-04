@@ -15,6 +15,7 @@ import gensim
 import numpy as np
 from sklearn.model_selection import train_test_split
 import pandas as pd
+import re
 
 
 class _BaseVectorizer:
@@ -38,8 +39,8 @@ class CharVectorizer(_BaseVectorizer):
         self._max_chars_per_line = max_chars_per_line
         self._char2freq = collections.Counter()
 
-    def _load_data(self, csv_filepath):
-        data = pd.read_csv(csv_filepath, delimiter=',', quoting=True, encoding='utf-8')
+    def _load_data(self, csv_filename):
+        data = pd.read_csv( os.path.join( self._data_folder, csv_filename), delimiter=',', quoting=True, encoding='utf-8')
         data.fillna(value=u'', inplace=True)
         questions1 = data.question1.astype(unicode).values
         questions2 = data.question2.astype(unicode).values
@@ -60,8 +61,8 @@ class CharVectorizer(_BaseVectorizer):
         #questions1 = self._load_qlist('train_questions1.pkl')
         #questions2 = self._load_qlist('train_questions2.pkl')
 
-        (questions1,questions2) = self._load_data( './data/train.csv' )
-        (self.queries1,self.queries2) = self._load_data('./data/test.csv')
+        (questions1,questions2) = self._load_data( 'train.csv' )
+        (self.queries1,self.queries2) = self._load_data('test.csv')
 
         ntrain = len(questions1)
 
@@ -201,6 +202,7 @@ class WordVectorizer(_BaseVectorizer):
     _w2v_path = os.path.join( _BaseVectorizer._data_folder, 'glove.840B.300d.txt' )
     binary_w2v = False
 
+    MAX_WORDS_PER_LINE = 50
     _ONLY_W2V_WORDS = False
 
     def _limit_tokens(self,tokens):
@@ -235,20 +237,36 @@ class WordVectorizer(_BaseVectorizer):
                         coefs = np.asarray(values[1:], dtype="float32")
                         self._w2v[word] = coefs
 
+    def _split_line(self, line, max_words_per_line):
+        return re.findall(r'\w+', line.lower())[:max_words_per_line]
 
-    def get_train_word_vectorization(self, swap_questions, re_weight):
+    def _load_questions(self, csv_filename, max_words_per_line):
+        data = pd.read_csv( os.path.join( self._data_folder, csv_filename), delimiter=',', quoting=True, encoding='utf-8')
+        data.fillna(value=u'', inplace=True)
+        data.question1 = data.question1.astype(unicode)
+        data.question2 = data.question2.astype(unicode)
+        qx1 = [ self._split_line(text,max_words_per_line) for text in data.question1 ]
+        qx2 = [ self._split_line(text,max_words_per_line) for text in data.question2 ]
+        return (qx1,qx2)
+
+    def get_train_word_vectorization(self, swap_questions, re_weight, max_words_per_line=60):
         #train_tokens1 = self._load_words('train_tokens1.pkl')
         # train_tokens2 = self._load_words('train_tokens2.pkl')
-        train_tokens1 = self._load_words('train_lemmas1.pkl')
-        train_tokens2 = self._load_words('train_lemmas2.pkl')
+        #train_tokens1 = self._load_words('train_lemmas1.pkl')
+        #train_tokens2 = self._load_words('train_lemmas2.pkl')
+
+        (train_tokens1,train_tokens2) = self._load_questions('train.csv', max_words_per_line)
+
         y_train = np.load( os.path.join(self._data_folder, 'y_train.npy') )
         ntrain = len(train_tokens1)
 
 
         #self.submit_tokens1 = self._load_words('submit_tokens1.pkl')
         #self.submit_tokens2 = self._load_words('submit_tokens2.pkl')
-        self.submit_tokens1 = self._load_words('submit_lemmas1.pkl')
-        self.submit_tokens2 = self._load_words('submit_lemmas2.pkl')
+        #self.submit_tokens1 = self._load_words('submit_lemmas1.pkl')
+        #self.submit_tokens2 = self._load_words('submit_lemmas2.pkl')
+        (self.submit_tokens1,self.submit_tokens2) = self._load_questions('test.csv', max_words_per_line)
+
 
 
         self._load_embeddings();
